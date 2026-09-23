@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>纸本文物展厅光照额度管理</title>
+<style>
+  :root { --primary: #6d4c2f; --danger: #c0392b; --ok: #1e8449; --bg: #f7f4ef; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+         background: var(--bg); color: #333; }
+  header { background: var(--primary); color: #fff; padding: 14px 24px; }
+  header h1 { margin: 0; font-size: 20px; font-weight: 600; }
+  nav { display: flex; gap: 4px; padding: 0 24px; background: #5d4028; }
+  nav button { background: none; border: none; color: #e8dcc8; padding: 12px 18px;
+               font-size: 15px; cursor: pointer; border-bottom: 3px solid transparent; }
+  nav button.active { color: #fff; border-bottom-color: #ffd699; font-weight: 600; }
+  main { max-width: 1080px; margin: 24px auto; padding: 0 16px; }
+  .card { background: #fff; border-radius: 8px; padding: 20px 24px;
+          margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  .card h2 { margin: 0 0 16px; font-size: 17px; color: var(--primary); }
+  label { display: block; font-size: 13px; color: #666; margin-bottom: 4px; }
+  input, select, textarea { width: 100%; padding: 8px 10px; border: 1px solid #ccc;
+                            border-radius: 4px; font-size: 14px; }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+               gap: 12px; align-items: end; }
+  button.btn { background: var(--primary); color: #fff; border: none; padding: 9px 20px;
+               border-radius: 4px; font-size: 14px; cursor: pointer; }
+  button.btn:hover { background: #5d4028; }
+  button.btn-sm { padding: 4px 10px; font-size: 12px; }
+  button.btn-danger { background: var(--danger); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 9px 10px; border-bottom: 1px solid #eee; text-align: left; }
+  th { background: #faf7f2; color: #6d4c2f; font-weight: 600; white-space: nowrap; }
+  tr.over { background: #fdecea; }
+  .tag { display: inline-block; padding: 2px 10px; border-radius: 10px;
+         font-size: 12px; font-weight: 600; }
+  .tag-ok { background: #e8f6ee; color: var(--ok); }
+  .tag-over { background: #fadbd8; color: var(--danger); }
+  #msg { position: fixed; top: 16px; right: 16px; padding: 12px 18px; border-radius: 6px;
+         color: #fff; font-size: 14px; display: none; z-index: 99; max-width: 420px;
+         box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+  #msg.ok { background: var(--ok); } #msg.err { background: var(--danger); }
+  .hidden { display: none; }
+  .num { font-variant-numeric: tabular-nums; }
+  .muted { color: #999; font-size: 12px; }
+</style>
+</head>
+<body>
+<header><h1>纸本文物展厅光照额度管理</h1></header>
+<nav>
+  <button data-tab="artifacts" class="active">藏品管理</button>
+  <button data-tab="exhibitions">展陈记录</button>
+  <button data-tab="summary">年度汇总</button>
+</nav>
+<main>
+  <!-- 藏品管理 -->
+  <section id="tab-artifacts">
+    <div class="card">
+      <h2>登记藏品</h2>
+      <form id="artifact-form" class="form-grid">
+        <div><label>藏品名称 *</label><input name="name" required maxlength="200"></div>
+        <div><label>年度光照额度（lux·小时）*</label>
+          <input name="annual_budget_lux_hours" type="number" min="0.01" step="any" required></div>
+        <div><label>描述</label><input name="description" maxlength="2000"></div>
+        <div><button class="btn" type="submit">保存</button></div>
+      </form>
+    </div>
+    <div class="card">
+      <h2>藏品列表</h2>
+      <table>
+        <thead><tr><th>ID</th><th>名称</th><th>年度额度 (lux·h)</th><th>描述</th><th>操作</th></tr></thead>
+        <tbody id="artifact-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 展陈记录 -->
+  <section id="tab-exhibitions" class="hidden">
+    <div class="card">
+      <h2>登记展陈记录</h2>
+      <form id="exhibition-form" class="form-grid">
+        <div><label>藏品 *</label><select name="artifact_id" required></select></div>
+        <div><label>开始时间 *</label><input name="start_time" type="datetime-local" step="1" required></div>
+        <div><label>结束时间 *</label><input name="end_time" type="datetime-local" step="1" required></div>
+        <div><label>平均照度（lux）*</label>
+          <input name="avg_lux" type="number" min="0" step="any" required></div>
+        <div><label>备注</label><input name="note" maxlength="2000"></div>
+        <div><button class="btn" type="submit">保存</button></div>
+      </form>
+      <p class="muted">提示：同一藏品时间重叠的记录将被拒绝；跨年记录会按年界自动拆分计入各年。</p>
+    </div>
+    <div class="card">
+      <h2>展陈记录列表</h2>
+      <div style="margin-bottom:12px;max-width:320px">
+        <label>按藏品筛选</label><select id="exhibition-filter"></select>
+      </div>
+      <table>
+        <thead><tr><th>ID</th><th>藏品</th><th>开始时间</th><th>结束时间</th>
+          <th>平均照度 (lux)</th><th>时长 (h)</th><th>暴露量 (lux·h)</th><th>跨年拆分</th><th>操作</th></tr></thead>
+        <tbody id="exhibition-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 年度汇总 -->
+  <section id="tab-summary" class="hidden">
+    <div class="card">
+      <h2>年度额度汇总</h2>
+      <form id="summary-form" class="form-grid" style="max-width:480px">
+        <div><label>统计年份</label>
+          <input name="year" type="number" min="1900" max="9999" required></div>
+        <div><button class="btn" type="submit">查询</button></div>
+      </form>
+    </div>
+    <div class="card">
+      <h2 id="summary-title">汇总结果</h2>
+      <table>
+        <thead><tr><th>ID</th><th>藏品</th><th>年度额度 (lux·h)</th>
+          <th>已用 (lux·h)</th><th>剩余 (lux·h)</th><th>状态</th></tr></thead>
+        <tbody id="summary-rows"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<div id="msg"></div>
+
+<script>
+const $ = (sel, el = document) => el.querySelector(sel);
+let artifacts = [];
+
+function showMsg(text, ok = true) {
+  const m = $('#msg');
+  m.textContent = text;
+  m.className = ok ? 'ok' : 'err';
+  m.style.display = 'block';
+  clearTimeout(m._t);
+  m._t = setTimeout(() => m.style.display = 'none', 4000);
+}
+
+async function api(path, options = {}) {
+  const resp = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' }, ...options,
+  });
+  if (resp.status === 204) return null;
+  const data = await resp.json().catch(() => null);
+  if (!resp.ok) {
+    let detail = data && data.detail;
+    if (Array.isArray(detail)) detail = detail.map(d => d.msg).join('；');
+    throw new Error(detail || `请求失败（${resp.status}）`);
+  }
+  return data;
+}
+
+// ---------- 标签页 ----------
+document.querySelectorAll('nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+    $('#tab-' + btn.dataset.tab).classList.remove('hidden');
+    if (btn.dataset.tab === 'summary') loadSummary();
+    if (btn.dataset.tab === 'exhibitions') loadExhibitions();
+  });
+});
+
+// ---------- 藏品 ----------
+async function loadArtifacts() {
+  artifacts = await api('/api/artifacts');
+  $('#artifact-rows').innerHTML = artifacts.map(a => `
+    <tr><td>${a.id}</td><td>${esc(a.name)}</td>
+      <td class="num">${fmt(a.annual_budget_lux_hours)}</td>
+      <td>${esc(a.description || '')}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="delArtifact(${a.id})">删除</button></td>
+    </tr>`).join('') || '<tr><td colspan="5" class="muted">暂无藏品</td></tr>';
+  const opts = artifacts.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('');
+  $('#exhibition-form select[name=artifact_id]').innerHTML = opts;
+  $('#exhibition-filter').innerHTML = '<option value="">全部藏品</option>' + opts;
+}
+
+async function delArtifact(id) {
+  if (!confirm('删除藏品将同时删除其全部展陈记录，确认？')) return;
+  try { await api(`/api/artifacts/${id}`, { method: 'DELETE' });
+    showMsg('已删除'); loadArtifacts(); }
+  catch (e) { showMsg(e.message, false); }
+}
+
+$('#artifact-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target;
+  try {
+    await api('/api/artifacts', { method: 'POST', body: JSON.stringify({
+      name: f.name.value.trim(),
+      annual_budget_lux_hours: parseFloat(f.annual_budget_lux_hours.value),
+      description: f.description.value.trim(),
+    })});
+    showMsg('藏品已保存'); f.reset(); loadArtifacts();
+  } catch (err) { showMsg(err.message, false); }
+});
+
+// ---------- 展陈记录 ----------
+$('#exhibition-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target;
+  if (!f.artifact_id.value) { showMsg('请先登记藏品', false); return; }
+  try {
+    const rec = await api(`/api/artifacts/${f.artifact_id.value}/exhibitions`, {
+      method: 'POST', body: JSON.stringify({
+        start_time: f.start_time.value, end_time: f.end_time.value,
+        avg_lux: parseFloat(f.avg_lux.value), note: f.note.value.trim(),
+      })});
+    showMsg(`展陈记录已保存，暴露量 ${fmt(rec.exposure_lux_hours)} lux·h`);
+    f.reset(); loadExhibitions();
+  } catch (err) { showMsg(err.message, false); }
+});
+
+$('#exhibition-filter').addEventListener('change', loadExhibitions);
+
+async function loadExhibitions() {
+  const filter = $('#exhibition-filter').value;
+  const targets = filter ? artifacts.filter(a => a.id == filter) : artifacts;
+  const rows = [];
+  for (const a of targets) {
+    const list = await api(`/api/artifacts/${a.id}/exhibitions`);
+    for (const r of list) rows.push({ ...r, name: a.name });
+  }
+  rows.sort((x, y) => x.start_time.localeCompare(y.start_time));
+  $('#exhibition-rows').innerHTML = rows.map(r => `
+    <tr><td>${r.id}</td><td>${esc(r.name)}</td>
+      <td class="num">${r.start_time.replace('T', ' ')}</td>
+      <td class="num">${r.end_time.replace('T', ' ')}</td>
+      <td class="num">${fmt(r.avg_lux)}</td>
+      <td class="num">${fmt(r.duration_hours)}</td>
+      <td class="num">${fmt(r.exposure_lux_hours)}</td>
+      <td class="num">${Object.entries(r.exposure_by_year)
+          .map(([y, v]) => `${y}年: ${fmt(v)}`).join('<br>')}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="delExhibition(${r.id})">删除</button></td>
+    </tr>`).join('') || '<tr><td colspan="9" class="muted">暂无展陈记录</td></tr>';
+}
+
+async function delExhibition(id) {
+  if (!confirm('确认删除该展陈记录？')) return;
+  try { await api(`/api/exhibitions/${id}`, { method: 'DELETE' });
+    showMsg('已删除'); loadExhibitions(); }
+  catch (e) { showMsg(e.message, false); }
+}
+
+// ---------- 年度汇总 ----------
+$('#summary-form').addEventListener('submit', e => { e.preventDefault(); loadSummary(); });
+
+async function loadSummary() {
+  const yearInput = $('#summary-form input[name=year]');
+  if (!yearInput.value) yearInput.value = new Date().getFullYear();
+  const data = await api(`/api/summary?year=${yearInput.value}`);
+  $('#summary-title').textContent =
+    `${data.year} 年度汇总（超额 ${data.over_budget_count} 件）`;
+  $('#summary-rows').innerHTML = data.items.map(i => `
+    <tr class="${i.over_budget ? 'over' : ''}">
+      <td>${i.artifact_id}</td><td>${esc(i.name)}</td>
+      <td class="num">${fmt(i.annual_budget_lux_hours)}</td>
+      <td class="num">${fmt(i.used_lux_hours)}</td>
+      <td class="num">${fmt(i.remaining_lux_hours)}</td>
+      <td>${i.over_budget ? '<span class="tag tag-over">超额</span>'
+                          : '<span class="tag tag-ok">正常</span>'}</td>
+    </tr>`).join('') || '<tr><td colspan="6" class="muted">暂无藏品</td></tr>';
+}
+
+// ---------- 工具 ----------
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function fmt(n) { return Number(n).toLocaleString('zh-CN', { maximumFractionDigits: 2 }); }
+
+$('#summary-form input[name=year]').value = new Date().getFullYear();
+loadArtifacts();
+</script>
+</body>
+</html>
