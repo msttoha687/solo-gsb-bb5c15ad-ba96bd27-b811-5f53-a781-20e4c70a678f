@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}年度总览 · 光照额度管理{% endblock %}
+{% block content %}
+<section class="toolbar">
+  <h2>{{ year }} 年度光照额度总览</h2>
+  <form method="get" action="/" class="inline-form">
+    <label>年度
+      <select name="year" onchange="this.form.submit()">
+        {% for y in years %}
+        <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <noscript><button type="submit">切换</button></noscript>
+  </form>
+</section>
+
+<table>
+  <thead>
+    <tr>
+      <th>藏品</th><th>编号</th><th>年度额度 (lux·h)</th><th>已用 (lux·h)</th>
+      <th>剩余 (lux·h)</th><th>使用率</th><th>状态</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr class="{% if row.over_quota %}over{% endif %}">
+      <td><a href="/artifacts/{{ row.artifact_id }}">{{ row.name }}</a></td>
+      <td>{{ row.inventory_no }}</td>
+      <td>{{ "%.0f"|format(row.quota_lux_hours) if row.quota_lux_hours is not none else "未设置" }}</td>
+      <td>{{ "%.2f"|format(row.used_lux_hours) }}</td>
+      <td>{{ "%.2f"|format(row.remaining_lux_hours) if row.remaining_lux_hours is not none else "—" }}</td>
+      <td>{{ "%.1f%%"|format(row.usage_percent) if row.usage_percent is not none else "—" }}</td>
+      <td>
+        {% if row.over_quota %}<span class="badge badge-danger">超额</span>
+        {% elif row.quota_lux_hours is none %}<span class="badge">未设额度</span>
+        {% else %}<span class="badge badge-ok">正常</span>{% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="empty">暂无藏品，请先到「藏品管理」登记。</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

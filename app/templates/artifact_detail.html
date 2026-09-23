@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}{{ artifact.name }} · 藏品详情{% endblock %}
+{% block content %}
+<h2>{{ artifact.name }} <small class="muted">{{ artifact.inventory_no }} · {{ artifact.medium }}</small></h2>
+{% if artifact.description %}<p class="muted">{{ artifact.description }}</p>{% endif %}
+
+<section class="card">
+  <h3>年度额度使用情况</h3>
+  <table>
+    <thead>
+      <tr><th>年度</th><th>额度 (lux·h)</th><th>已用 (lux·h)</th><th>剩余 (lux·h)</th><th>使用率</th><th>状态</th></tr>
+    </thead>
+    <tbody>
+      {% for year, row in usage.items() %}
+      <tr class="{% if row and row.over_quota %}over{% endif %}">
+        <td>{{ year }}</td>
+        <td>{{ "%.0f"|format(row.quota_lux_hours) if row and row.quota_lux_hours is not none else "未设置" }}</td>
+        <td>{{ "%.2f"|format(row.used_lux_hours) if row else "0.00" }}</td>
+        <td>{{ "%.2f"|format(row.remaining_lux_hours) if row and row.remaining_lux_hours is not none else "—" }}</td>
+        <td>{{ "%.1f%%"|format(row.usage_percent) if row and row.usage_percent is not none else "—" }}</td>
+        <td>
+          {% if row and row.over_quota %}<span class="badge badge-danger">超额</span>
+          {% elif row and row.quota_lux_hours is not none %}<span class="badge badge-ok">正常</span>
+          {% else %}<span class="badge">未设额度</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h4>设置 / 调整年度额度</h4>
+  <form method="post" action="/artifacts/{{ artifact.id }}/quota" class="inline-form">
+    <label>年度 <input type="number" name="year" value="{{ default_year }}" min="1900" max="2200" required></label>
+    <label>额度 (lux·h) <input type="number" name="quota_lux_hours" min="0" step="any" required></label>
+    <button type="submit">保存额度</button>
+  </form>
+</section>
+
+<section class="card">
+  <h3>展陈记录</h3>
+  <table>
+    <thead>
+      <tr><th>开始时间</th><th>结束时间</th><th>平均照度 (lux)</th><th>时长 (h)</th><th>暴露量 (lux·h)</th><th>跨年拆分</th><th>备注</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for row in record_rows %}
+      <tr>
+        <td>{{ row.rec.start_time.strftime("%Y-%m-%d %H:%M") }}</td>
+        <td>{{ row.rec.end_time.strftime("%Y-%m-%d %H:%M") }}</td>
+        <td>{{ "%.1f"|format(row.rec.avg_lux) }}</td>
+        <td>{{ "%.2f"|format(row.duration_hours) }}</td>
+        <td>{{ "%.2f"|format(row.exposure.values()|sum) }}</td>
+        <td>
+          {% for y, lh in row.exposure.items()|sort %}
+          <span class="tag">{{ y }} 年 {{ "%.2f"|format(lh) }}</span>
+          {% endfor %}
+        </td>
+        <td>{{ row.rec.note }}</td>
+        <td>
+          <form method="post" action="/records/{{ row.rec.id }}/delete" class="inline-form"
+                onsubmit="return confirm('确认删除该展陈记录？');">
+            <button type="submit" class="btn-danger">删除</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="empty">暂无展陈记录。</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h4>新增展陈记录</h4>
+  <form method="post" action="/artifacts/{{ artifact.id }}/records" class="grid-form">
+    <label>开始时间 <input type="datetime-local" name="start_time" required></label>
+    <label>结束时间 <input type="datetime-local" name="end_time" required></label>
+    <label>平均照度 (lux) <input type="number" name="avg_lux" min="0.01" step="any" required></label>
+    <label>备注 <input type="text" name="note" maxlength="500"></label>
+    <button type="submit">保存记录</button>
+  </form>
+  <p class="hint">同一藏品的时间段不得重叠（首尾相接允许）；跨年记录将自动按 1 月 1 日 00:00 边界拆分计入各年度。</p>
+</section>
+{% endblock %}

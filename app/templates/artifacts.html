@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}藏品管理 · 光照额度管理{% endblock %}
+{% block content %}
+<h2>藏品管理</h2>
+
+<section class="card">
+  <h3>登记新藏品</h3>
+  <form method="post" action="/artifacts" class="grid-form">
+    <label>名称 <input type="text" name="name" required maxlength="200"></label>
+    <label>藏品编号 <input type="text" name="inventory_no" required maxlength="100"></label>
+    <label>材质 <input type="text" name="medium" value="纸本" maxlength="100"></label>
+    <label>备注 <input type="text" name="description" maxlength="500"></label>
+    <button type="submit">登记</button>
+  </form>
+  <p class="hint">写操作需要管理员认证（HTTP Basic，默认 admin / admin123，可用环境变量覆盖）。</p>
+</section>
+
+<table>
+  <thead>
+    <tr><th>名称</th><th>编号</th><th>材质</th><th>备注</th><th>操作</th></tr>
+  </thead>
+  <tbody>
+    {% for a in artifacts %}
+    <tr>
+      <td><a href="/artifacts/{{ a.id }}">{{ a.name }}</a></td>
+      <td>{{ a.inventory_no }}</td>
+      <td>{{ a.medium }}</td>
+      <td>{{ a.description }}</td>
+      <td>
+        <form method="post" action="/artifacts/{{ a.id }}/delete" class="inline-form"
+              onsubmit="return confirm('删除藏品将同时删除其额度与展陈记录，确认？');">
+          <button type="submit" class="btn-danger">删除</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="empty">暂无藏品。</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

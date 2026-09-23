@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}光照额度管理{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="site-header">
+  <h1><a href="/">纸本文物展厅光照额度管理</a></h1>
+  <nav>
+    <a href="/">年度总览</a>
+    <a href="/artifacts">藏品管理</a>
+  </nav>
+</header>
+<main>
+  {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+  {% if msg %}<div class="alert alert-ok">{{ msg }}</div>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="site-footer">有效暴露量单位：lux·小时（平均照度 × 时长）；跨年记录按自然年边界拆分计入各年。</footer>
+</body>
+</html>

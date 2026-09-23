@@ -1,0 +1,17 @@
+services:
+  web:
+    build: .
+    image: paper-light-quota:latest
+    container_name: paper-light-quota
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: sqlite:////app/data/lightquota.db
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+    volumes:
+      - lightquota-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  lightquota-data:
